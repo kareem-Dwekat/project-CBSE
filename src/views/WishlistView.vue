@@ -1,62 +1,93 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+const WISHLIST_STORAGE_KEY =
+  'leaf-letter-wishlist'
+
+const CART_STORAGE_KEY =
+  'leaf-letter-cart'
 
 const search = ref('')
 const snackbar = ref(false)
 const message = ref('')
 
-const books = ref([
-  {
-    id: 1,
-    title: 'The Midnight Library',
-    author: 'Matt Haig',
-    format: 'Paperback',
-    price: 14.99,
-    rating: 4.6,
-    color: '#284B63',
-  },
-  {
-    id: 2,
-    title: 'Atomic Habits',
-    author: 'James Clear',
-    format: 'Hardcover',
-    price: 17.99,
-    rating: 4.8,
-    color: '#B65C3A',
-  },
-  {
-    id: 3,
-    title: 'The Alchemist',
-    author: 'Paulo Coelho',
-    format: 'Paperback',
-    price: 11.99,
-    rating: 4.7,
-    color: '#D5A64A',
-  },
-  {
-    id: 4,
-    title: 'The Psychology of Money',
-    author: 'Morgan Housel',
-    format: 'Paperback',
-    price: 19.99,
-    rating: 4.5,
-    color: '#315A52',
-  },
-])
+function readStoredItems(key) {
+  try {
+    const items = JSON.parse(
+      localStorage.getItem(key) || '[]',
+    )
+
+    return Array.isArray(items)
+      ? items
+      : []
+  } catch {
+    return []
+  }
+}
+
+function normalizeBook(book) {
+  return {
+    ...book,
+    id:
+      book.id ||
+      `${book.title}-${book.author}`,
+
+    title:
+      book.title || 'Untitled book',
+
+    author:
+      book.author || 'Unknown author',
+
+    format:
+      book.format ||
+      book.type ||
+      'Printed Book',
+
+    price: Number(book.price || 0),
+    rating: Number(book.rating || 0),
+
+    color:
+      book.color || '#17324d',
+  }
+}
+
+// قراءة الكتب التي أضافها Catalog
+const books = ref(
+  readStoredItems(
+    WISHLIST_STORAGE_KEY,
+  ).map(normalizeBook),
+)
 
 const filteredBooks = computed(() => {
-  const value = search.value.toLowerCase().trim()
+  const value = search.value
+    .toLowerCase()
+    .trim()
 
   if (!value) {
     return books.value
   }
 
-  return books.value.filter(
-    book =>
-      book.title.toLowerCase().includes(value) ||
-      book.author.toLowerCase().includes(value),
-  )
+  return books.value.filter(book => {
+    return (
+      book.title
+        .toLowerCase()
+        .includes(value) ||
+      book.author
+        .toLowerCase()
+        .includes(value)
+    )
+  })
 })
+
+function saveWishlist() {
+  localStorage.setItem(
+    WISHLIST_STORAGE_KEY,
+    JSON.stringify(books.value),
+  )
+}
 
 function showMessage(text) {
   message.value = text
@@ -64,12 +95,97 @@ function showMessage(text) {
 }
 
 function addToCart(book) {
-  showMessage(`${book.title} was added to your cart.`)
+  const cartItems =
+    readStoredItems(
+      CART_STORAGE_KEY,
+    )
+
+  const existingBook =
+    cartItems.find(
+      item =>
+        String(item.id) ===
+        String(book.id),
+    )
+
+  let updatedCart
+
+  if (existingBook) {
+    updatedCart =
+      cartItems.map(item =>
+        String(item.id) ===
+        String(book.id)
+          ? {
+              ...item,
+              quantity:
+                Number(
+                  item.quantity || 1,
+                ) + 1,
+            }
+          : item,
+      )
+  } else {
+    updatedCart = [
+      ...cartItems,
+      {
+        id: book.id,
+        title: book.title,
+        author: book.author,
+        price: Number(book.price),
+        quantity: 1,
+        format: book.format,
+        image: book.image,
+        color: book.color,
+      },
+    ]
+  }
+
+  localStorage.setItem(
+    CART_STORAGE_KEY,
+    JSON.stringify(updatedCart),
+  )
+
+  window.dispatchEvent(
+    new CustomEvent(
+      'cart:updated',
+      {
+        detail: {
+          items: updatedCart,
+        },
+      },
+    ),
+  )
+
+  showMessage(
+    `${book.title} was added to your cart.`,
+  )
 }
 
 function removeBook(book) {
-  books.value = books.value.filter(item => item.id !== book.id)
-  showMessage(`${book.title} was removed from your wishlist.`)
+  books.value =
+    books.value.filter(
+      item =>
+        String(item.id) !==
+        String(book.id),
+    )
+
+  saveWishlist()
+
+  showMessage(
+    `${book.title} was removed from your wishlist.`,
+  )
+}
+
+function openCatalog() {
+  window.history.pushState(
+    null,
+    '',
+    '/books',
+  )
+}
+
+function logout() {
+  localStorage.removeItem('loggedIn')
+  router.push('/login')
 }
 </script>
 

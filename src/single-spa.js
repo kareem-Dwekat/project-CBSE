@@ -9,6 +9,8 @@ const vueLifecycles = singleSpaVue({
   createApp,
 
   appOptions: {
+    el: '#account-mfe',
+
     render() {
       return h(App)
     },
