@@ -1,7 +1,7 @@
 import { createApp, h } from 'vue'
 import singleSpaVue from 'single-spa-vue'
 
-import App from './App.vue'
+import App from './app.vue'
 import router from './router/index.js'
 import { createAppVuetify } from './plugins/vuetify.js'
 
